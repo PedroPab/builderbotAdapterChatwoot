@@ -1,66 +1,33 @@
-import { join } from 'path'
-import { createBot, createProvider, createFlow, addKeyword, utils } from '@builderbot/bot'
+import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
 
+import { getOrCreateConversation, sendToChatwoot, convMap } from './chatwootClient.js';
+
 const PORT = process.env.PORT ?? 3008
 
-const discordFlow = addKeyword('doc').addAnswer(
-    ['You can see the documentation here', '📄 https://builderbot.app/docs \n', 'Do you want to continue? *yes*'].join(
-        '\n'
-    ),
-    { capture: true },
-    async (ctx, { gotoFlow, flowDynamic }) => {
-        if (ctx.body.toLocaleLowerCase().includes('yes')) {
-            return gotoFlow(registerFlow)
+
+const welcomeFlow = addKeyword([])
+    .addAction(async (ctx) => {
+        console.log('convMap:', convMap)
+        const { from, name } = ctx
+        const number = '+' + from.replace('@s.whatsapp.net', '')
+        const message = `${ctx.body}`
+        // aqui redireccionamso  el mensaje a chatwoot para que quede registrado
+        try {
+            const convId = await getOrCreateConversation({ number, name }, message);
+            await sendToChatwoot(convId || 15, message);
+        } catch (error) {
+            console.error('Error sending message to Chatwoot:', error);
         }
-        await flowDynamic('Thanks!')
-        return
-    }
-)
 
-const welcomeFlow = addKeyword(['hi', 'hello', 'hola'])
-    .addAnswer(`🙌 Hello welcome to this *Chatbot*`)
-    .addAnswer(
-        [
-            'I share with you the following links of interest about the project',
-            '👉 *doc* to view the documentation',
-        ].join('\n'),
-        { delay: 800, capture: true },
-        async (ctx, { fallBack }) => {
-            if (!ctx.body.toLocaleLowerCase().includes('doc')) {
-                return fallBack('You should type *doc*')
-            }
-            return
-        },
-        [discordFlow]
-    )
-
-const registerFlow = addKeyword(utils.setEvent('REGISTER_FLOW'))
-    .addAnswer(`What is your name?`, { capture: true }, async (ctx, { state }) => {
-        await state.update({ name: ctx.body })
-    })
-    .addAnswer('What is your age?', { capture: true }, async (ctx, { state }) => {
-        await state.update({ age: ctx.body })
-    })
-    .addAction(async (_, { flowDynamic, state }) => {
-        await flowDynamic(`${state.get('name')}, thanks for your information!: Your age: ${state.get('age')}`)
     })
 
-const fullSamplesFlow = addKeyword(['samples', utils.setEvent('SAMPLES')])
-    .addAnswer(`💪 I'll send you a lot files...`)
-    .addAnswer(`Send image from Local`, { media: join(process.cwd(), 'assets', 'sample.png') })
-    .addAnswer(`Send video from URL`, {
-        media: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYTJ0ZGdjd2syeXAwMjQ4aWdkcW04OWlqcXI3Ynh1ODkwZ25zZWZ1dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LCohAb657pSdHv0Q5h/giphy.mp4',
-    })
-    .addAnswer(`Send audio from URL`, { media: 'https://cdn.freesound.org/previews/728/728142_11861866-lq.mp3' })
-    .addAnswer(`Send file from URL`, {
-        media: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    })
+
 
 const main = async () => {
-    const adapterFlow = createFlow([welcomeFlow, registerFlow, fullSamplesFlow])
-    
+    const adapterFlow = createFlow([welcomeFlow])
+
     const adapterProvider = createProvider(Provider)
     const adapterDB = new Database()
 
@@ -69,6 +36,41 @@ const main = async () => {
         provider: adapterProvider,
         database: adapterDB,
     })
+
+    //chatwoot
+    adapterProvider.server.post(
+        '/v1/chatwoot',
+        handleCtx(async (bot, req, res) => {
+
+
+            const body = req.body
+            const event = body.event
+
+            const type = body.type
+            if (type !== 'incoming_message') {
+                return res.code(400).end('Type not supported')
+            }
+
+            if (event !== 'message_created') {
+                return res.code(400).end('Event not supported')
+            }
+
+            const { content, content_type } = body
+
+            if (content_type !== 'text') {
+                return res.code(400).end('Content type not supported')
+            }
+
+            // const urlMedia = body.conversation.messages[0]?.processed_message_content?.media_url
+
+            const number = body.conversation.meta.sender.phone_number
+            const message = content || body.conversation.messages[0].processed_message_content
+
+
+            await bot.sendMessage(number, message, {})
+            return res.code(201).end('Message received and sent to the user')
+        })
+    )
 
     adapterProvider.server.post(
         '/v1/messages',
