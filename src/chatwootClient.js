@@ -16,8 +16,8 @@ export const chatwoot = axios.create({
 });
 
 // In-memory maps to track conversations and contacts by number
-export const convMap = new Map();
-export const contactMap = new Map();
+export const conversationIdMap = new Map();
+export const contactIdMap = new Map();
 
 /**
  * Create a new contact in Chatwoot.
@@ -27,7 +27,7 @@ async function createContact(number, name) {
         `/accounts/${ACCOUNT_ID}/contacts`,
         { name, phone_number: number }
     );
-    return data.payload;
+    return data.payload.contact || data.payload; // Handle both payload formats
 }
 
 /**
@@ -45,43 +45,25 @@ async function findContact(number) {
 /**
  * Create a new conversation for a contact in a specific inbox.
  */
-async function createConversation(inboxId, contactId, message) {
+async function createConversation(inboxId, contactId) {
     const { data } = await chatwoot.post(
         `/accounts/${ACCOUNT_ID}/conversations`,
         {
             inbox_id: inboxId,
             contact_id: contactId,
-            message: { content: message },
         }
     );
     return data;
 }
 
-/**
- * Master function to send a message:
- * - Ensures contact exists.
- * - Creates conversation if needed.
- * - Sends message.
- */
-export async function sendMessageMaster({ number, name, message, options = {} }) {
-    // 1) Lookup or create conversation
-    let convId = convMap.get(number);
-    if (!convId) {
-        // a) Lookup or create contact
-        let contact = contactMap.get(number) || await findContact(number);
-        if (!contact) {
-            contact = await createContact(number, name);
-        }
-        contactMap.set(number, contact.id);
+async function getConversationByContactId(conversationId) {
+    const { data: data } = await chatwoot.get(
+        `/accounts/${ACCOUNT_ID}/contacts/${conversationId}/conversations`
+    );
+    return data.payload.length > 0 ? data.payload[0] : null;
+}
 
-        // b) Create conversation
-        const conv = await createConversation(INBOX_ID, contact.id, message);
-
-        convId = conv.id;
-        convMap.set(number, convId);
-    }
-
-    // 2) Send the message
+async function createMessage({ message, conversationId, options = {} }) {
     const payload = {
         content: message,
         message_type: options.message_type || 'incoming',
@@ -89,10 +71,53 @@ export async function sendMessageMaster({ number, name, message, options = {} })
         content_type: options.content_type || 'text',
         content_attributes: options.content_attributes || {},
     };
-    const rta = await chatwoot.post(
-        `/accounts/${ACCOUNT_ID}/conversations/${convId}/messages`,
+
+    return await chatwoot.post(
+        `/accounts/${ACCOUNT_ID}/conversations/${conversationId}/messages`,
         payload
     );
-    console.log('Message sent:', rta);
-    return rta
+
 }
+
+
+async function extraContact(number, name) {
+    let contact = contactIdMap.get(number) || await findContact(number);
+    if (!contact) {
+        contact = await createContact(number, name);
+    }
+    contactIdMap.set(number, contact.id);
+    return contact;
+
+}
+
+async function extraConversation(contact) {
+    const conversation = await getConversationByContactId(contact.id);
+
+    if (!conversation) {
+        return await createConversation(INBOX_ID, contact.id);
+    }
+
+    return conversation;
+}
+
+export async function sendMessageMaster({ number, name, message, options = {} }) {
+    let conversationId = conversationIdCache({ name, number });
+    const messageSend = await createMessage({ message, conversationId, options });
+    return messageSend
+}
+
+async function conversationIdCache({ name, number }) {
+    let conversationId = conversationIdMap.get(number);
+    if (!conversationId) {
+
+        const contact = await extraContact(number, name);
+
+        const conversation = await extraConversation(contact);
+
+        conversationIdMap.set(number, conversation.id);
+        conversationId = conversation.id;
+    }
+
+    return conversationId;
+}
+
