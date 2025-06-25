@@ -2,21 +2,20 @@ import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/b
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
 
-import { getOrCreateConversation, sendToChatwoot, convMap } from './chatwootClient.js';
+import { sendMessageMaster } from './chatwootClient.js';
 
 const PORT = process.env.PORT ?? 3008
 
 
 const welcomeFlow = addKeyword([])
     .addAction(async (ctx) => {
-        console.log('convMap:', convMap)
         const { from, name } = ctx
         const number = '+' + from.replace('@s.whatsapp.net', '')
         const message = `${ctx.body}`
         // aqui redireccionamso  el mensaje a chatwoot para que quede registrado
         try {
-            const convId = await getOrCreateConversation({ number, name }, message);
-            await sendToChatwoot(convId || 15, message);
+            await sendMessageMaster({ number, name, message });
+
         } catch (error) {
             console.error('Error sending message to Chatwoot:', error);
         }
@@ -46,18 +45,24 @@ const main = async () => {
             const body = req.body
             const event = body.event
 
-            const type = body.type
-            if (type !== 'incoming_message') {
+
+            if (event !== 'message_created') {
+                console.error('Event not supported:', event)
+                return res.code(400).end('Event not supported')
+            }
+
+            const message_type = body.message_type
+            if (message_type !== 'outgoing') {
+                console.error('Type not supported:', message_type)
+                console.error('Body:', body)
                 return res.code(400).end('Type not supported')
             }
 
-            if (event !== 'message_created') {
-                return res.code(400).end('Event not supported')
-            }
 
             const { content, content_type } = body
 
             if (content_type !== 'text') {
+                console.error('Content type not supported:', content_type)
                 return res.code(400).end('Content type not supported')
             }
 
