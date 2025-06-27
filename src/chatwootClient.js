@@ -1,13 +1,16 @@
-// chatwootClient.js
 import axios from 'axios';
-
+import fs from 'fs';
+import path from 'path';
+import mime from 'mime';
+import FormData from 'form-data';
+// Configuración de variables de entorno
 const CHATWOOT_API_URL = process.env.CHATWOOT_API_URL;
 const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 const ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
 const INBOX_ID = process.env.CHATWOOT_INBOX_ID;
 
-// Axios client for Chatwoot
-export const chatwoot = axios.create({
+// Cliente Axios configurado para Chatwoot
+export const chatwootClient = axios.create({
     baseURL: `${CHATWOOT_API_URL}/api/v1`,
     headers: {
         'api_access_token': CHATWOOT_API_TOKEN,
@@ -15,109 +18,142 @@ export const chatwoot = axios.create({
     },
 });
 
-// In-memory maps to track conversations and contacts by number
-export const conversationIdMap = new Map();
-export const contactIdMap = new Map();
+// Mapas en memoria para cachear contactos y conversaciones
+const conversationIdCache = new Map();
+const contactIdCache = new Map();
 
 /**
- * Create a new contact in Chatwoot.
+ * Crea un nuevo contacto en Chatwoot.
  */
-async function createContact(number, name) {
-    const { data } = await chatwoot.post(
+async function createContact(phoneNumber, name) {
+    const { data } = await chatwootClient.post(
         `/accounts/${ACCOUNT_ID}/contacts`,
-        { name, phone_number: number }
+        { name, phone_number: phoneNumber }
     );
-    return data.payload.contact || data.payload; // Handle both payload formats
+    return data.payload.contact || data.payload;
 }
 
 /**
- * Find an existing contact by phone number via Chatwoot API.
+ * Busca un contacto existente por número de teléfono.
  */
-async function findContact(number) {
-    const { data } = await chatwoot.get(
+async function searchContact(phoneNumber) {
+    const { data } = await chatwootClient.get(
         `/accounts/${ACCOUNT_ID}/contacts/search`,
-        { params: { q: number } }
+        { params: { q: phoneNumber } }
     );
     const contacts = data.payload;
     return contacts.length ? contacts[0] : null;
 }
 
 /**
- * Create a new conversation for a contact in a specific inbox.
+ * Crea una nueva conversación para un contacto en un inbox específico.
  */
 async function createConversation(inboxId, contactId) {
-    const { data } = await chatwoot.post(
+    const { data } = await chatwootClient.post(
         `/accounts/${ACCOUNT_ID}/conversations`,
-        {
-            inbox_id: inboxId,
-            contact_id: contactId,
-        }
+        { inbox_id: inboxId, contact_id: contactId }
     );
     return data;
 }
 
-async function getConversationByContactId(conversationId) {
-    const { data: data } = await chatwoot.get(
-        `/accounts/${ACCOUNT_ID}/contacts/${conversationId}/conversations`
+/**
+ * Obtiene la primera conversación activa de un contacto.
+ */
+async function getFirstConversationByContactId(contactId) {
+    const { data } = await chatwootClient.get(
+        `/accounts/${ACCOUNT_ID}/contacts/${contactId}/conversations`
     );
     return data.payload.length > 0 ? data.payload[0] : null;
 }
 
-async function createMessage({ message, conversationId, options = {} }) {
-    const payload = {
-        content: message,
-        message_type: options.message_type || 'incoming',
-        private: options.private || false,
-        content_type: options.content_type || 'text',
-        content_attributes: options.content_attributes || {},
+/**
+ * Envía un mensaje a una conversación.
+ */
+async function sendMessageToConversation({ message, conversationId, options = {} }) {
+    const { urlPath } = options;
+
+    // 1. Construye el FormData
+    const form = new FormData();
+
+    // Si hay texto, lo añadimos
+    if (message) {
+        form.append('content', message);
+    }
+
+    // Si viene una ruta de archivo, lo añadimos como attachment
+    if (urlPath) {
+        const fileName = path.basename(urlPath);
+        const contentType = mime.getType(urlPath) || 'application/octet-stream';
+        form.append('attachments[]', fs.createReadStream(urlPath), {
+            filename: fileName,
+            contentType,              // p. ej. 'image/jpeg'
+        });
+    }
+
+    form.append('message_type', 'incoming');
+    form.append('private', 'false'); // o 'true' si es un mensaje privado
+
+    const headers = {
+        ...form.getHeaders(),      // Content-Type: multipart/form-data; boundary=---
+        api_access_token: process.env.CHATWOOT_API_TOKEN
     };
 
-    return await chatwoot.post(
+    await chatwootClient.post(
         `/accounts/${ACCOUNT_ID}/conversations/${conversationId}/messages`,
-        payload
+        form,
+        {
+            headers,
+            transformRequest: [(data) => data],  // <— evita la conversión a JSON
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+        }
     );
-
 }
 
+/**
+ * Obtiene o crea un contacto y lo cachea.
+ */
+async function getOrCreateContact(phoneNumber, name) {
+    let contactId = contactIdCache.get(phoneNumber);
+    let contact;
 
-async function extraContact(number, name) {
-    let contact = contactIdMap.get(number) || await findContact(number);
-    if (!contact) {
-        contact = await createContact(number, name);
+    if (contactId) {
+        contact = { id: contactId };
+    } else {
+        contact = await searchContact(phoneNumber);
+        if (!contact) {
+            contact = await createContact(phoneNumber, name);
+        }
+        contactIdCache.set(phoneNumber, contact.id);
     }
-    contactIdMap.set(number, contact.id);
     return contact;
-
 }
 
-async function extraConversation(contact) {
-    const conversation = await getConversationByContactId(contact.id);
+/**
+ * Obtiene o crea una conversación y la cachea.
+ */
+async function getOrCreateConversation(phoneNumber, name) {
+    let conversationId = conversationIdCache.get(phoneNumber);
 
-    if (!conversation) {
-        return await createConversation(INBOX_ID, contact.id);
-    }
-
-    return conversation;
-}
-
-export async function sendMessageMaster({ number, name, message, options = {} }) {
-    let conversationId = conversationIdCache({ name, number });
-    const messageSend = await createMessage({ message, conversationId, options });
-    return messageSend
-}
-
-async function conversationIdCache({ name, number }) {
-    let conversationId = conversationIdMap.get(number);
     if (!conversationId) {
+        const contact = await getOrCreateContact(phoneNumber, name);
+        let conversation = await getFirstConversationByContactId(contact.id);
 
-        const contact = await extraContact(number, name);
-
-        const conversation = await extraConversation(contact);
-
-        conversationIdMap.set(number, conversation.id);
+        if (!conversation) {
+            conversation = await createConversation(INBOX_ID, contact.id);
+        }
         conversationId = conversation.id;
+        conversationIdCache.set(phoneNumber, conversationId);
     }
 
     return conversationId;
+}
+
+/**
+ * Envía un mensaje a un número y nombre dados, gestionando contacto y conversación.
+ */
+export async function sendMessage({ number, name, message, options = {} }) {
+    const conversationId = await getOrCreateConversation(number, name);
+    return await sendMessageToConversation({ message, conversationId, options });
 }
 

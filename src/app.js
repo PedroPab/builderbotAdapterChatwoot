@@ -1,4 +1,4 @@
-import { createBot, createProvider, createFlow, addKeyword, EVENTS } from '@builderbot/bot'
+import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
 
@@ -76,7 +76,6 @@ const main = async () => {
             const message_type = body.message_type
             if (message_type !== 'outgoing') {
                 console.error('Type not supported:', message_type)
-                console.error('Body:', body)
                 return res.code(400).end('Type not supported')
             }
 
@@ -91,11 +90,23 @@ const main = async () => {
             // const urlMedia = body.conversation.messages[0]?.processed_message_content?.media_url
 
             const number = body.conversation.meta.sender.phone_number
-            const message = content || body.conversation.messages[0].processed_message_content
+            const message = content || body?.conversation?.messages[0]?.processed_message_content || ''
 
+            let media = null
+            if (body?.conversation?.messages?.attachments) {
+                const mediaUrl = body?.conversation?.messages[0]?.attachments[0]?.data_url || null
+                const mediaType = body?.conversation?.messages[0]?.attachments[0]?.file_type || null
+                media = { url: mediaUrl, type: mediaType }
+            }
 
-            await bot.sendMessage(number, message, {})
+            if (media) {
+                const cleanNumber = number
+                await bot.provider.sendMedia(cleanNumber, media.url, message)
+            } else {
+                await bot.sendMessage(number, message)
+            }
             return res.code(201).end('Message received and sent to the user')
+
         })
     )
 
