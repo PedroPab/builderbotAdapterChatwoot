@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -153,7 +154,13 @@ async function getOrCreateConversation(phoneNumber, name) {
  * Envía un mensaje a un número y nombre dados, gestionando contacto y conversación.
  */
 export async function sendMessage({ number, name, message, options = {} }) {
-    const conversationId = await getOrCreateConversation(number, name);
-    return await sendMessageToConversation({ message, conversationId, options });
+
+    try {
+        const conversationId = await getOrCreateConversation(number, name);
+        return await sendMessageToConversation({ message, conversationId, options });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        throw new Error('Failed to send message');
+    }
 }
 
