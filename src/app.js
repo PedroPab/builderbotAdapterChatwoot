@@ -58,55 +58,89 @@ const main = async () => {
         database: adapterDB,
     })
 
+    const okResponse = (res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        return res.end(JSON.stringify({ status: 'ok' }))
+    }
+
     //chatwoot
     adapterProvider.server.post(
         '/v1/chatwoot',
         handleCtx(async (bot, req, res) => {
+            try {
+
+                const body = req.body
+                const { event, conversation, message_type, content, content_type } = req.body
+                var waNumberOn = '+' + conversation?.meta?.sender?.phone_number?.replace('+', '')
+
+                switch (event) {
+
+                    case 'conversation_typing_on':
+                        console.log('no hay soporte para typing_on')
+                        return okResponse(res)
+                    case 'conversation_typing_off':
+                        console.log('no hay soporte para typing_off')
+                        return okResponse(res)
+
+                    case 'conversation_created':
+                        console.log('Conversation created:', waNumberOn)
+                        break
+                    case 'conversation_updated':
+                        console.log('Conversation updated:', waNumberOn)
+                        break
+                    case 'message_created':
+                        console.log('Message created:', waNumberOn)
+                        break
+                    case 'message_updated':
+                        console.log('Message updated:', waNumberOn)
+                        break
+
+                    case 'incoming':
+                        console.log('Incoming message:', waNumberOn)
+                        break
+                    default:
+                        console.log('Event not supported:', event)
+                        return okResponse(res)
+                }
 
 
-            const body = req.body
-            const event = body.event
+
+                if (message_type !== 'outgoing') {
+                    console.error('Type not supported:', message_type)
+                    return okResponse(res)
+                }
 
 
-            if (event !== 'message_created') {
-                console.error('Event not supported:', event)
-                return res.code(400).end('Event not supported')
+                if (content_type !== 'text') {
+                    console.error('Content type not supported:', content_type)
+                    return okResponse(res)
+                }
+
+                // const urlMedia = body.conversation.messages[0]?.processed_message_content?.media_url
+
+                const number = body.conversation.meta.sender.phone_number
+                const message = content || body?.conversation?.messages[0]?.processed_message_content || ''
+
+                let media = null
+                if (body?.conversation?.messages?.attachments) {
+                    const mediaUrl = body?.conversation?.messages[0]?.attachments[0]?.data_url || null
+                    const mediaType = body?.conversation?.messages[0]?.attachments[0]?.file_type || null
+                    media = { url: mediaUrl, type: mediaType }
+                }
+
+                if (media) {
+                    const cleanNumber = number.replace('+', '')
+                    await bot.provider.sendMedia(cleanNumber, media.url, message)
+                } else {
+                    const cleanNumber = number.replace('+', '')
+                    await bot.sendMessage(cleanNumber, message, {})
+                }
+                return okResponse(res)
+
+            } catch (error) {
+                console.error('Error processing chatwoot message:', error)
+                return res.code(500).end('Internal Server Error')
             }
-
-            const message_type = body.message_type
-            if (message_type !== 'outgoing') {
-                console.error('Type not supported:', message_type)
-                return res.code(400).end('Type not supported')
-            }
-
-
-            const { content, content_type } = body
-
-            if (content_type !== 'text') {
-                console.error('Content type not supported:', content_type)
-                return res.code(400).end('Content type not supported')
-            }
-
-            // const urlMedia = body.conversation.messages[0]?.processed_message_content?.media_url
-
-            const number = body.conversation.meta.sender.phone_number
-            const message = content || body?.conversation?.messages[0]?.processed_message_content || ''
-
-            let media = null
-            if (body?.conversation?.messages?.attachments) {
-                const mediaUrl = body?.conversation?.messages[0]?.attachments[0]?.data_url || null
-                const mediaType = body?.conversation?.messages[0]?.attachments[0]?.file_type || null
-                media = { url: mediaUrl, type: mediaType }
-            }
-
-            if (media) {
-                const cleanNumber = number
-                await bot.provider.sendMedia(cleanNumber, media.url, message)
-            } else {
-                await bot.sendMessage(number, message)
-            }
-            return res.code(201).end('Message received and sent to the user')
-
         })
     )
 
