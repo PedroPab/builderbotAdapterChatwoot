@@ -5,6 +5,11 @@ on:
     branches: [ main ]          # publica en cada push a main
   workflow_dispatch:            # permite dispararlo manualmente
 
+# 👇 ESTA SECCIÓN ES CLAVE
+permissions:
+  contents: read        # clonar repo
+  packages: write       # publicar a GHCR
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}      # owner/repo
