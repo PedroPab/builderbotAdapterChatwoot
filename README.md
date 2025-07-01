@@ -1,44 +1,34 @@
-<p align="center">
-  <a href="https://builderbot.vercel.app/">
-    <picture>
-      <img src="https://builderbot.vercel.app/assets/thumbnail-vector.png" height="80">
-    </picture>
-    <h2 align="center">BuilderBot</h2>
-  </a>
-</p>
+# BuilderBot Adapter Chatwoot
 
+Este proyecto es un **adaptador** para [BuilderBot](https://github.com/leifer-mendez/builderbot) que permite enviar y recibir mensajes de WhatsApp a través de [Chatwoot](https://www.chatwoot.com/).
 
+## ¿Qué hace?
 
-<p align="center">
-  <a aria-label="NPM version" href="https://www.npmjs.com/package/@builderbot/bot">
-    <img alt="" src="https://img.shields.io/npm/v/@builderbot/bot?color=%2300c200&label=%40bot-whatsapp">
-  </a>
-  <a aria-label="Join the community on GitHub" href="https://link.codigoencasa.com/DISCORD">
-    <img alt="" src="https://img.shields.io/discord/915193197645402142?logo=discord">
-  </a>
-</p>
+- Recibe mensajes de WhatsApp usando BuilderBot y los reenvía a Chatwoot.
+- Permite responder desde Chatwoot y que el mensaje llegue al usuario de WhatsApp.
+- Soporta mensajes de texto y archivos multimedia básicos.
 
+## ¿Cómo funciona?
 
-## Getting Started
+- Usa [@builderbot/bot](https://www.npmjs.com/package/@builderbot/bot) y [@builderbot/provider-baileys](https://www.npmjs.com/package/@builderbot/provider-baileys) para la integración con WhatsApp.
+- Expone endpoints HTTP para recibir webhooks de Chatwoot y enviar mensajes.
+- Gestiona contactos y conversaciones automáticamente en Chatwoot.
 
-With this library, you can build automated conversation flows agnostic to the WhatsApp provider, set up automated responses for frequently asked questions, receive and respond to messages automatically, and track interactions with customers. Additionally, you can easily set up triggers to expand functionalities limitlessly.
+## Uso rápido
 
-```
-npm create builderbot@latest
-```
+1. Configura las variables de entorno en `.env` (ver ejemplo incluido).
+2. Instala dependencias:  
 
+   ```sh
+   npm install
+   ```
 
-## Documentation
+3. Inicia el bot
 
-Visit [builderbot](https://builderbot.vercel.app/) to view the full documentation.
+   ```sh
+   npm start
+   ```
 
+4. Configura los webhooks de Chatwoot para apuntar a `/v1/chatwoot` en tu servidor.
 
-## Official Course
-
-If you want to discover all the functions and features offered by the library you can take the course.
-[View Course](https://app.codigoencasa.com/courses/builderbot?refCode=LEIFER)
-
-
-## Contact Us
-- [💻 Discord](https://link.codigoencasa.com/DISCORD)
-- [👌 𝕏 (Twitter)](https://twitter.com/leifermendez)
+5. Escanea el codigo QR que esta en tu servidor en la url de: 'localhost:3008'

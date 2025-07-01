@@ -117,6 +117,11 @@ const main = async () => {
                     return okResponse(res)
                 }
 
+                //miramos el mensaje sea publico (no privado)
+                if (body.private) {
+                    console.error('Private message not supported:', waNumberOn)
+                    return okResponse(res)
+                }
 
                 if (content_type !== 'text') {
                     console.error('Content type not supported:', content_type)
@@ -129,14 +134,15 @@ const main = async () => {
                 const message = content || body?.conversation?.messages[0]?.processed_message_content || ''
 
                 let media = null
-                if (body?.conversation?.messages?.attachments) {
-                    const mediaUrl = body?.conversation?.messages[0]?.attachments[0]?.data_url || null
-                    const mediaType = body?.conversation?.messages[0]?.attachments[0]?.file_type || null
+                const attachments = body?.conversation?.messages?.attachments || body?.attachments
+                if (attachments && attachments.length > 0) {
+                    const mediaUrl = attachments[0]?.data_url || null
+                    const mediaType = attachments[0]?.file_type || null
                     media = { url: mediaUrl, type: mediaType }
                 }
 
                 if (media) {
-                    const cleanNumber = number.replace('+', '')
+                    const cleanNumber = number.replace('+', '') + '@s.whatsapp.net'
                     await bot.provider.sendMedia(cleanNumber, media.url, message)
                 } else {
                     const cleanNumber = number.replace('+', '')

@@ -1,7 +1,7 @@
 {
-  "name": "base-bailey-json",
+  "name": "builderbotadapterchatwoot",
   "version": "1.0.0",
-  "description": "",
+  "description": "adapter for BuilderBot to connect with Chatwoot",
   "main": "src/app.js",
   "type": "module",
   "scripts": {
@@ -28,6 +28,6 @@
     "eslint-plugin-builderbot": "latest",
     "nodemon": "^3.1.0"
   },
-  "author": "",
+  "author": "PedroPab",
   "license": "ISC"
 }
