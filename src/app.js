@@ -3,6 +3,8 @@ import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
 
 import { sendMessage } from './chatwootClient.js';
+import { parseWaNumber } from './utils/parseWaNumber.js';
+import { reportError } from './utils/reportError.js';
 
 const PORT = process.env.PORT ?? 3008
 
@@ -10,39 +12,44 @@ const PORT = process.env.PORT ?? 3008
 const generalFlow = addKeyword([])
 
     .addAction(async (ctx, { provider }) => {
+        try {
 
-        const { from, name } = ctx
-        const number = '+' + from.replace('@s.whatsapp.net', '')
+            const { from, name } = ctx
 
-        let message = `${ctx.body}`
-        const messageCtx = ctx.message
+            const number = parseWaNumber(from);   // ← siempre E.164 limpio
 
-        const listDownloadableMessages = {
-            // '_stickerMessage',
-            '_audioMessage': { value: 'audioMessage', type: 'audio', urlPath: null },
-            '_videoMessage': { value: 'videoMessage', type: 'video', urlPath: null },
-            '_imageMessage': { value: 'imageMessage', type: 'image', urlPath: null },
-            '_documentMessage': { value: 'documentMessage', type: 'document', urlPath: null },
-        }
+            let message = `${ctx.body}`
+            const messageCtx = ctx.message
 
-        let options = { value: 'text', type: 'text', urlPath: null }
-        //miramos si el mensaje se puede descargar
-        const isDownloadable = Object.keys(listDownloadableMessages).some((key) => {
-            if (messageCtx[key] !== undefined) {
-                options = listDownloadableMessages[key]
-                return true
+            const listDownloadableMessages = {
+                // '_stickerMessage',
+                '_audioMessage': { value: 'audioMessage', type: 'audio', urlPath: null },
+                '_videoMessage': { value: 'videoMessage', type: 'video', urlPath: null },
+                '_imageMessage': { value: 'imageMessage', type: 'image', urlPath: null },
+                '_documentMessage': { value: 'documentMessage', type: 'document', urlPath: null },
             }
-            return false
-        })
+
+            let options = { value: 'text', type: 'text', urlPath: null }
+            //miramos si el mensaje se puede descargar
+            const isDownloadable = Object.keys(listDownloadableMessages).some((key) => {
+                if (messageCtx[key] !== undefined) {
+                    options = listDownloadableMessages[key]
+                    return true
+                }
+                return false
+            })
 
 
-        if (isDownloadable) {
-            options.urlPath = await provider.saveFile(ctx, { path: './public/temp' })
-            message = ctx?.message[options.value]?.caption || ''
+            if (isDownloadable) {
+                options.urlPath = await provider.saveFile(ctx, { path: './public/temp' })
+                message = ctx?.message[options.value]?.caption || ''
+            }
+            await sendMessage({ number, name, message, options });
+
+        } catch (error) {
+            console.error('Error in generalFlow:', error);
+            await reportError(error, ctx, provider);
         }
-
-        await sendMessage({ number, name, message, options });
-
     })
 
 
