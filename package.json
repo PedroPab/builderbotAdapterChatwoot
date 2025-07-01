@@ -8,9 +8,9 @@
     "lint": "eslint . --no-ignore",
     "dev": "npm run lint && node --watch --env-file=.env ./src/app.js",
     "start": "node ./src/app.js",
-    "build": "docker build -t bot-chatwoot:latest . ",
-    "tag": "docker tag bot-chatwoot:latest ghcr.io/pedropab/bot-chatwoot:latest",
-    "push": "docker push ghcr.io/pedropab/bot-chatwoot:latest"
+    "build": "docker build -t adapter-chatwoot:latest . ",
+    "tag": "docker tag adapter-chatwoot:latest ghcr.io/pedropab/adapter-chatwoot:latest",
+    "push": "docker push ghcr.io/pedropab/adapter-chatwoot:latest"
   },
   "keywords": [],
   "dependencies": {
