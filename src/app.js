@@ -151,6 +151,10 @@ const main = async () => {
                 return okResponse(res)
 
             } catch (error) {
+                if (error.message.includes("ENOENT: no such file or directory, rename")) {
+                    console.error('File not found error:', error.message)
+                    return okResponse(res)
+                }
                 console.error('Error processing chatwoot message:', error)
                 return res.code(500).end('Internal Server Error')
             }
