@@ -24,7 +24,7 @@ jobs:
         host: ${{ secrets.VPS_HOST }}
         username: ${{ secrets.VPS_USER }}
         password: ${{ secrets.VPS_PASSWORD }}
-        port: 22
+        port: ${{ secrets.VPS_PORT }}
 
         # ⚠️ Reemplaza /var/www/mi-app por tu ruta
         script: |
