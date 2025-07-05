@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import mime from 'mime';
 import FormData from 'form-data';
+import https from 'https';
 // Configuración de variables de entorno
 const CHATWOOT_API_URL = process.env.CHATWOOT_API_URL;
 const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
@@ -15,10 +16,12 @@ export const chatwootClient = axios.create({
     baseURL: `${CHATWOOT_API_URL}/api/v1`,
     headers: {
         'api_access_token': CHATWOOT_API_TOKEN,
-        'Content-Type': 'application/json',
-    },
+    }, timeout: 15000,                                        // 15 s es razonable
+    httpsAgent: new https.Agent({
+        keepAlive: true,
+        family: 4               // IPv4 first
+    })
 });
-
 // Mapas en memoria para cachear contactos y conversaciones
 const conversationIdCache = new Map();
 const contactIdCache = new Map();

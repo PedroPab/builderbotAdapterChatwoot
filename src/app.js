@@ -13,25 +13,27 @@ const generalFlow = addKeyword([])
 
     .addAction(async (ctx, { provider }) => {
         try {
-
             const { from, name } = ctx
+            const number = parseWaNumber(from)
 
-            const number = parseWaNumber(from);   // ← siempre E.164 limpio
-
-            let message = `${ctx.body}`
-            const messageCtx = ctx.message
-
-            const listDownloadableMessages = {
-                // '_stickerMessage',
-                '_audioMessage': { value: 'audioMessage', type: 'audio', urlPath: null },
-                '_videoMessage': { value: 'videoMessage', type: 'video', urlPath: null },
-                '_imageMessage': { value: 'imageMessage', type: 'image', urlPath: null },
-                '_documentMessage': { value: 'documentMessage', type: 'document', urlPath: null },
+            // 🔹 1. Salir si no hay mensaje (p. ej. llamada)
+            if (!ctx.message) {
+                console.log('ctx.message vacío: evento no-mensaje; se ignora')
+                return
             }
 
+            const messageCtx = ctx.message        // siempre hay algo en este punto
+            let message = ctx.body || ''
             let options = { value: 'text', type: 'text', urlPath: null }
-            //miramos si el mensaje se puede descargar
-            const isDownloadable = Object.keys(listDownloadableMessages).some((key) => {
+
+            const listDownloadableMessages = {
+                _audioMessage: { value: 'audioMessage', type: 'audio', urlPath: null },
+                _videoMessage: { value: 'videoMessage', type: 'video', urlPath: null },
+                _imageMessage: { value: 'imageMessage', type: 'image', urlPath: null },
+                _documentMessage: { value: 'documentMessage', type: 'document', urlPath: null },
+            }
+
+            const isDownloadable = Object.keys(listDownloadableMessages).some(key => {
                 if (messageCtx[key] !== undefined) {
                     options = listDownloadableMessages[key]
                     return true
@@ -39,13 +41,12 @@ const generalFlow = addKeyword([])
                 return false
             })
 
-
             if (isDownloadable) {
                 options.urlPath = await provider.saveFile(ctx, { path: './public/temp' })
-                message = ctx?.message[options.value]?.caption || ''
+                message = messageCtx[options.value]?.caption || ''
             }
-            await sendMessage({ number, name, message, options });
 
+            await sendMessage({ number, name, message, options })
         } catch (error) {
             console.error('Error in generalFlow:', error);
             await reportError(error, ctx, provider);
