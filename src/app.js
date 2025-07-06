@@ -1,3 +1,11 @@
+// ⚠️  Se ejecuta antes de todo lo demás
+process.on('unhandledRejection', (reason) => {
+    console.error('⚠️  Unhandled Rejection: esto hay que tenerlo en cuenta');
+    console.error('💥  Unhandled Rejection:', reason);
+    // Aquí decides: ¿solo log? ¿o terminar el proceso?
+    // process.exit(1);
+});
+
 import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
