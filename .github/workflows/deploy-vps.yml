@@ -37,11 +37,11 @@ jobs:
           echo "→ Ir al directorio del proyecto"
           cd /root/botLeifer
 
-          echo "→ Bajar stack actual"
-          docker compose down
-
           echo "→ Traer la imagen más reciente"
           docker compose pull
+
+          echo "→ Bajar stack actual"
+          docker compose down
 
           echo "→ Levantar de nuevo"
           docker compose up -d
