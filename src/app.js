@@ -24,6 +24,13 @@ const generalFlow = addKeyword([])
             const { from, name } = ctx
             console.log("🚀 ~ from:", from)
             const number = parseWaNumber(from)
+            // Mostrar ctx completo si el 'from' contiene "lid"
+            if (from && from.includes("lid")) {
+                console.log("🔎 ctx completo por 'lid':", JSON.stringify(ctx, null, 2));
+                console.log(ctx)
+            }
+
+
 
             // 🔹 1. Salir si no hay mensaje (p. ej. llamada)
             if (!ctx.message) {
