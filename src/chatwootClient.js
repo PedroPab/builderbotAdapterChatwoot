@@ -157,6 +157,7 @@ async function getOrCreateConversation(phoneNumber, name) {
  * Envía un mensaje a un número y nombre dados, gestionando contacto y conversación.
  */
 export async function sendMessage({ number, name, message, options = {} }) {
+    console.log("🚀 ~ sendMessage ~ number:", number)
 
     try {
         const conversationId = await getOrCreateConversation(number, name);

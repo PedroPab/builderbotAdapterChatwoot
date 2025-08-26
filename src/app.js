@@ -22,6 +22,7 @@ const generalFlow = addKeyword([])
     .addAction(async (ctx, { provider }) => {
         try {
             const { from, name } = ctx
+            console.log("🚀 ~ from:", from)
             const number = parseWaNumber(from)
 
             // 🔹 1. Salir si no hay mensaje (p. ej. llamada)
