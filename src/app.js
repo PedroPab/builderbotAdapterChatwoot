@@ -9,6 +9,7 @@ process.on('unhandledRejection', (reason) => {
 import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
+// import { VenomProvider as Provider } from '@builderbot/provider-venom'
 
 import { sendMessage } from './chatwootClient.js';
 import { parseWaNumber } from './utils/parseWaNumber.js';
