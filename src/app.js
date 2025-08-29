@@ -41,6 +41,7 @@ const generalFlow = addKeyword([])
 
             const messageCtx = ctx.message        // siempre hay algo en este punto
             let message = ctx.body || ''
+            console.log("MA 🚀 ~ ctx.body: este es el mensaje que llego: ", ctx.body)
             let options = { value: 'text', type: 'text', urlPath: null }
 
             const listDownloadableMessages = {

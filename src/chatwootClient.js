@@ -81,6 +81,8 @@ async function sendMessageToConversation({ message, conversationId, options = {}
 
     // Si hay texto, lo añadimos
     if (message) {
+        console.log("MP 🚀 ~ sendMessageToConversation ~ message: este es el mensaje", message)
+
         form.append('content', message);
     }
 
